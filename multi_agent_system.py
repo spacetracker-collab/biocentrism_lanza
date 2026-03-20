@@ -37,14 +37,25 @@ for step in range(STEPS):
         states[i] = h
         realities.append(reality)
 
-    shared_reality = torch.mean(torch.stack(realities), dim=0)
+    # Shared reality (detach to avoid graph reuse)
+    shared_reality = torch.mean(torch.stack(realities), dim=0).detach()
+
+    # Zero all grads
+    for opt in optimizers:
+        opt.zero_grad()
+
+    total_loss = 0
 
     for i in range(NUM_AGENTS):
-        optimizers[i].zero_grad()
-
         loss = torch.mean((realities[i] - shared_reality) ** 2)
-        loss.backward()
-        optimizers[i].step()
+        total_loss += loss
+
+    # Single backward pass
+    total_loss.backward()
+
+    # Step all optimizers
+    for opt in optimizers:
+        opt.step()
 
     if step % 10 == 0:
         print(f"Step {step} | Reality Mean: {shared_reality.mean().item():.4f}")
