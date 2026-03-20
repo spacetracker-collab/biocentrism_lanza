@@ -24,6 +24,10 @@ membranes = [torch.zeros(NODES, DIM) for _ in range(NUM_AGENTS)]
 for step in range(STEPS):
     realities = []
 
+    # 🔥 DETACH STATES (CRITICAL FIX)
+    states = [s.detach() for s in states]
+    membranes = [m.detach() for m in membranes]
+
     for i in range(NUM_AGENTS):
         h = states[i]
 
@@ -37,10 +41,10 @@ for step in range(STEPS):
         states[i] = h
         realities.append(reality)
 
-    # Shared reality (detach to avoid graph reuse)
+    # Shared reality (no gradient sharing)
     shared_reality = torch.mean(torch.stack(realities), dim=0).detach()
 
-    # Zero all grads
+    # Zero grads
     for opt in optimizers:
         opt.zero_grad()
 
@@ -53,7 +57,7 @@ for step in range(STEPS):
     # Single backward pass
     total_loss.backward()
 
-    # Step all optimizers
+    # Step optimizers
     for opt in optimizers:
         opt.step()
 
